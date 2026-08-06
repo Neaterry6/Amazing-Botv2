@@ -10,21 +10,31 @@ let _dirty = false;
 
 function load() {
     if (_data) return _data;
-    try { _data = fs.readJsonSync(DATA_FILE); }
-    catch { _data = {}; }
+    try {
+        fs.ensureDirSync(path.dirname(DATA_FILE));
+        _data = fs.existsSync(DATA_FILE) ? fs.readJsonSync(DATA_FILE) : {};
+    } catch (err) {
+        console.error('[usersData] Failed to read data file, starting fresh:', err.message);
+        _data = {};
+    }
     return _data;
 }
 
 function save() {
-    if (!_dirty) return;
+    if (!_dirty || !_data) return;
     try {
         fs.ensureDirSync(path.dirname(DATA_FILE));
         fs.writeJsonSync(DATA_FILE, _data, { spaces: 2 });
         _dirty = false;
-    } catch {}
+    } catch (err) {
+        console.error('[usersData] Failed to write data file:', err.message);
+    }
 }
 
-setInterval(save, 4000);
+setInterval(save, 3000);
+process.on('exit', save);
+process.on('SIGINT', () => { save(); process.exit(0); });
+process.on('SIGTERM', () => { save(); process.exit(0); });
 
 function cleanId(id) {
     return String(id || '').replace(/[^0-9]/g, '').split(':')[0];
@@ -108,8 +118,12 @@ const usersData = {
     },
 
     async refreshInfo(userID, info = {}) {
+        const id = cleanId(userID);
+        if (!id) return;
+        const data = load();
+        if (!data[id]) data[id] = defaultUser(id);
         const updates = {};
-        if (info.name) updates.name = info.name;
+        if (info.name && info.name !== data[id].name) updates.name = info.name;
         if (info.gender) updates.gender = info.gender;
         if (info.vanity) updates.vanity = info.vanity;
         if (info.avatarUrl) updates.avatarUrl = info.avatarUrl;
