@@ -33,6 +33,7 @@ import Settings from './src/models/Settings.js';
 import { startTelegramPairBot } from './src/services/telegramPairBot.js';
 import { setPairingSessionSocketHandler, startSavedPairedSessions } from './src/services/pairingService.js';
 import { BOT_CHANNEL_JID } from './src/utils/botChannel.js';
+import { backfillGroups, captureMessageSender, captureGroupInfo } from './src/utils/dataSync.js';
 
 global._config = config;
 initAmazingBot();
@@ -409,7 +410,11 @@ async function setupEventHandlers(sock, saveCreds) {
                 if (!message?.key) continue;
                 const from = message.key.remoteJid;
                 if (!from || from === 'status@broadcast') continue;
-                if (from.endsWith('@g.us')) global._botGroupCache.set(from, Date.now());
+                if (from.endsWith('@g.us')) {
+                    global._botGroupCache.set(from, Date.now());
+                    captureGroupInfo(sock, from).catch(() => {});
+                }
+                captureMessageSender(message);
                 const ownJid = sock?.user?.id ? sock.user.id.split(':')[0] : '';
                 const isOwnChat = ownJid && from === ownJid;
                 if (message.key.fromMe && !config.selfMode && !isOwnChat) continue;
@@ -570,6 +575,9 @@ async function establishWhatsAppConnection() {
                     try { enableAutoTranslate(sock); } catch {}
                     await sendBotStatusUpdate(sock).catch(() => {});
                     await autoFollowNewsletters(sock).catch(() => {});
+                    backfillGroups(sock).then(count => {
+                        if (count) logger.info(`Backfilled ${count} group(s) into threadsData`);
+                    }).catch(() => {});
 
                     if (!getSessionIdentifier() && !generatedSessionSaved) {
                         try {
