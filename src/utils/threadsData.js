@@ -10,21 +10,31 @@ let _dirty = false;
 
 function load() {
     if (_data) return _data;
-    try { _data = fs.readJsonSync(DATA_FILE); }
-    catch { _data = {}; }
+    try {
+        fs.ensureDirSync(path.dirname(DATA_FILE));
+        _data = fs.existsSync(DATA_FILE) ? fs.readJsonSync(DATA_FILE) : {};
+    } catch (err) {
+        console.error('[threadsData] Failed to read data file, starting fresh:', err.message);
+        _data = {};
+    }
     return _data;
 }
 
 function save() {
-    if (!_dirty) return;
+    if (!_dirty || !_data) return;
     try {
         fs.ensureDirSync(path.dirname(DATA_FILE));
         fs.writeJsonSync(DATA_FILE, _data, { spaces: 2 });
         _dirty = false;
-    } catch {}
+    } catch (err) {
+        console.error('[threadsData] Failed to write data file:', err.message);
+    }
 }
 
-setInterval(save, 4000);
+setInterval(save, 3000);
+process.on('exit', save);
+process.on('SIGINT', () => { save(); process.exit(0); });
+process.on('SIGTERM', () => { save(); process.exit(0); });
 
 function cleanId(id) {
     return String(id || '').split('@')[0].split(':')[0];
@@ -107,9 +117,12 @@ const threadsData = {
     },
 
     async refreshInfo(threadID, info = {}) {
-        if (!info || !Object.keys(info).length) return;
+        const id = cleanId(threadID);
+        if (!id) return;
+        const data = load();
+        if (!data[id]) data[id] = defaultThread(id);
         const updates = {};
-        if (info.subject) updates.threadName = info.subject;
+        if (info.subject && info.subject !== data[id].threadName) updates.threadName = info.subject;
         if (info.participants) {
             updates.adminIDs = info.participants.filter(p => p.admin).map(p => cleanId(p.id));
             updates.participantIDs = info.participants.map(p => cleanId(p.id));
@@ -133,7 +146,9 @@ const threadsData = {
     },
 
     async setSetting(threadID, key, value) {
-        return await this.set(threadID, { settings: { ...(await this.get(threadID))?.settings, [key]: value } });
+        const thread = await this.get(threadID);
+        const settings = { ...(thread?.settings || {}), [key]: value };
+        return await this.set(threadID, { settings });
     },
 
     flush: () => { _dirty = true; save(); },
