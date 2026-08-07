@@ -103,6 +103,7 @@ class CommandHandler {
         if (this.isInitialized) return true;
         try {
             await commandManager.initializeCommands();
+            this.registerOnChatCommands();
             this.isInitialized = true;
             logger.info(`CommandHandler ready — ${getAllCommands().length} commands`);
             return true;
