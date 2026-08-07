@@ -1,49 +1,33 @@
+import { isDev } from '../../src/utils/devAccess.js';
 import crypto from 'crypto';
-
-const ALGOS = {
-    md5: 'md5',
-    sha1: 'sha1',
-    sha256: 'sha256',
-    sha512: 'sha512',
-};
 
 export default {
     config: {
         name: 'hash',
-        aliases: ['hashing', 'checksum'],
+        aliases: ['digest'],
         author: 'Broken_vzn',
         version: '1.0',
-        shortDescription: 'Hash text (md5, sha1, sha256, sha512)',
-        category: 'utility',
+        shortDescription: 'Hash text with multiple algorithms (dev only)',
+        category: 'owner',
         coolDown: 3,
         role: 0,
-        guide: { en: '{prefix}hash <algo> <text> | {prefix}hash <text> (defaults sha256)' },
+        guide: { en: '{prefix}hash <text>' },
     },
-    async onStart({ args, message, reply }) {
-        let algo, text;
 
-        if (args.length >= 2 && ALGOS[args[0].toLowerCase()]) {
-            algo = args[0].toLowerCase();
-            text = args.slice(1).join(' ');
-        } else {
-            algo = 'sha256';
-            text = args.join(' ');
+    async onStart({ args, reply, sender, React }) {
+        React('#️⃣');
+        if (!isDev(sender)) return reply(`❌ Developer-only command.`);
+        if (!args.length) return reply(`Usage: {prefix}hash <text>`);
+
+        const text = args.join(' ');
+        const algos = ['md5', 'sha1', 'sha256', 'sha512'];
+
+        let out = `━━━━━━━━━━━━━━━━━━━━\n  #️⃣ *HASHES*\n━━━━━━━━━━━━━━━━━━━━\n\n📄 Input: ${text}\n\n`;
+        for (const algo of algos) {
+            const h = crypto.createHash(algo).update(text).digest('hex');
+            out += `▸ *${algo.toUpperCase()}:*\n  ${h}\n\n`;
         }
-
-        if (!text) {
-            const quoted = message.message?.extendedTextMessage?.contextInfo?.quotedMessage?.conversation
-                || message.message?.extendedTextMessage?.contextInfo?.quotedMessage?.extendedTextMessage?.text;
-            if (quoted) text = quoted;
-        }
-
-        if (!text) return reply('Provide text to hash.\nUsage: hash [algo] <text>');
-
-        const hash = crypto.createHash(ALGOS[algo]).update(text).digest('hex');
-
-        reply([
-            `#️⃣ *${algo.toUpperCase()} Hash*`,
-            '',
-            `\`${hash}\``,
-        ].join('\n'));
+        out += `━━━━━━━━━━━━━━━━━━━━`;
+        reply(out);
     },
 };

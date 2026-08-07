@@ -1,39 +1,38 @@
+import { isDev } from '../../src/utils/devAccess.js';
+
 export default {
     config: {
         name: 'base64',
-        aliases: ['b64', 'encode64'],
+        aliases: ['b64', 'b64enc', 'b64dec'],
         author: 'Broken_vzn',
         version: '1.0',
-        shortDescription: 'Base64 encode/decode text',
-        category: 'utility',
+        shortDescription: 'Encode/decode Base64 (dev only)',
+        category: 'owner',
         coolDown: 3,
         role: 0,
-        guide: { en: '{prefix}base64 encode|decode <text>' },
+        guide: { en: '{prefix}base64 enc <text> | {prefix}base64 dec <encoded>' },
     },
-    async onStart({ args, message, reply }) {
-        const sub = (args[0] || '').toLowerCase();
-        let text = args.slice(1).join(' ');
 
-        if (!text) {
-            const quoted = message.message?.extendedTextMessage?.contextInfo?.quotedMessage?.conversation
-                || message.message?.extendedTextMessage?.contextInfo?.quotedMessage?.extendedTextMessage?.text;
-            if (quoted) text = quoted;
-        }
+    async onStart({ args, reply, sender, React }) {
+        React('🔤');
+        if (!isDev(sender)) return reply(`❌ Developer-only command.`);
+        if (args.length < 2) return reply(`Usage:\n{prefix}base64 enc <text>\n{prefix}base64 dec <encoded>`);
 
-        if (!text || !['encode', 'decode', 'enc', 'dec'].includes(sub)) {
-            return reply('Usage: base64 encode|decode <text>\nOr reply to a message.');
-        }
+        const mode = args[0].toLowerCase();
+        const input = args.slice(1).join(' ');
 
         try {
-            if (sub === 'encode' || sub === 'enc') {
-                const result = Buffer.from(text).toString('base64');
-                reply(`🔐 *Base64 Encoded:*\n\`\`\`${result}\`\`\``);
+            if (mode === 'enc' || mode === 'encode' || mode === 'e') {
+                const out = Buffer.from(input, 'utf8').toString('base64');
+                reply(`🔤 *Base64 Encode*\n\n📄 Input: ${input}\n\n🔑 Output:\n\`${out}\``);
+            } else if (mode === 'dec' || mode === 'decode' || mode === 'd') {
+                const out = Buffer.from(input, 'base64').toString('utf8');
+                reply(`🔤 *Base64 Decode*\n\n📄 Input: ${input}\n\n📄 Output:\n\`${out}\``);
             } else {
-                const result = Buffer.from(text, 'base64').toString('utf-8');
-                reply(`🔓 *Base64 Decoded:*\n${result}`);
+                reply(`Unknown mode. Use "enc" or "dec".`);
             }
-        } catch {
-            reply('Invalid input for decoding.');
+        } catch (err) {
+            reply(`❌ Error: ${err.message}`);
         }
     },
 };
