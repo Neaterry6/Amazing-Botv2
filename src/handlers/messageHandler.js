@@ -534,6 +534,14 @@ class MessageHandler {
                 try { await sock.readMessages([message.key]); } catch {}
             }
 
+            // Track activity for tagactive/rank (group only)
+            if (isGroup && senderJid && !fromMe) {
+                try {
+                    const { trackActivity } = await import('../utils/activityStore.js');
+                    trackActivity(from, senderJid.split('@')[0]);
+                } catch {}
+            }
+
             const stanzaId = resolveStanzaId(message);
             const replyHandler = findReplyHandler(stanzaId);
             const chatHandler = findChatHandler(from);
