@@ -2,6 +2,7 @@ import logger from '../utils/logger.js';
 import config from '../config.js';
 import { getGroup, updateGroup } from '../models/Group.js';
 import { createPromoteImage, createDemoteImage, createGroupUpdateImage } from '../utils/canvasUtils.js';
+import { isProtected } from '../utils/antihijack.js';
 
 export default async function handleGroupUpdate(sock, update) {
     try {
@@ -41,6 +42,30 @@ export default async function handleGroupUpdate(sock, update) {
         }
         
         if (action === 'demote' && participants.length > 0) {
+            // ANTI-HIJACK: if protection is on and someone mass-demotes many admins,
+            // kick the person who did it. Bot must be admin to respond.
+            try {
+                if (isProtected(groupId) && participants.length >= 2) {
+                    const isBotAdmin = groupMetadata.participants?.some(p => p.id === sock.user?.id && p.admin);
+                    if (isBotAdmin && author && author !== sock.user?.id) {
+                        // Mass demote = hijack attempt. Demote + kick the author.
+                        const isAuthorAdmin = groupMetadata.participants?.some(p => p.id === author && p.admin);
+                        if (isAuthorAdmin) {
+                            await sock.groupParticipantsUpdate(groupId, [author], 'demote');
+                        }
+                        await sock.groupParticipantsUpdate(groupId, [author], 'remove');
+                        await sock.sendMessage(groupId, {
+                            text: `🛡️ *ANTI-HIJACK TRIGGERED!*\n\n🚨 @${author?.split('@')[0]} tried to hijack this group by demoting ${participants.length} admins at once.\n\n👋 They have been kicked.`,
+                            mentions: [author]
+                        });
+                        logger.warn(`[Anti-hijack] Kicked ${author} from ${groupId} for mass demote of ${participants.length} admins`);
+                        return;
+                    }
+                }
+            } catch (e) {
+                logger.error('[Anti-hijack] Error handling demote:', e);
+            }
+
             for (const participant of participants) {
                 try {
                     const userName = participant.split('@')[0];
