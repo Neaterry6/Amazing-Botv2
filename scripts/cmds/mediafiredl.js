@@ -1,56 +1,61 @@
+import { cobaltDownload, fetchBuffer, validateUrl } from '../../src/utils/downloadHelper.js';
 import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
 
 export default {
     config: {
         name: 'mediafiredl',
-        aliases: ['mediafire', 'mfdl'],
+        aliases: ['mf', 'mfdl', 'mediafire'],
         author: 'Broken_vzn',
-        version: '1.0',
-        shortDescription: 'Download files from MediaFire',
+        version: '2.0',
+        shortDescription: 'Download from MediaFire',
         category: 'downloader',
         coolDown: 15,
         role: 0,
         guide: { en: '{prefix}mediafiredl <url>' },
     },
-    async onStart({ args, reply, sock, from, message }) {
-        if (!args.length) return reply('Paste a MediaFire link.\nUsage: mediafiredl <url>');
 
+    async onStart({ args, reply, prefix, React }) {
+        React('🔥');
+        if (!args.length) return reply(`Usage: ${prefix}mediafiredl <MediaFire URL>`);
         const url = args[0];
-        if (!url.includes('mediafire.com')) return reply('That doesn\'t look like a MediaFire URL.');
-
-        try {
-            // Fetch the page and extract download link
-            const { data: html } = await axios.get(url, { timeout: 15000 });
-            const match = html.match(/href="(https?:\/\/download\d+\.mediafire\.com\/[^"]+)"/i)
-                || html.match(/href="(\/[^"]+)"[^>]*class="download_link"[^>]*>/i);
-
-            let dlUrl = match?.[1];
-            if (dlUrl && !dlUrl.startsWith('http')) dlUrl = 'https://www.mediafire.com' + dlUrl;
-
-            if (!dlUrl) return reply('Could not find download link. The file might be too large or removed.');
-
-            // Get file info
-            const nameMatch = html.match(/<div class="filename">([^<]+)<\/div>/i);
-            const fileName = nameMatch?.[1] || 'download';
-
-            const { data: buffer } = await axios.get(dlUrl, { responseType: 'arraybuffer', timeout: 120000 });
-            const fileSize = (buffer.length / (1024 * 1024)).toFixed(2);
-
-            if (buffer.length > 100 * 1024 * 1024) {
-                return reply(`File too large (${fileSize}MB). Max 100MB.`);
-            }
-
-            await sock.sendMessage(from, {
-                document: buffer,
-                fileName: fileName,
-                mimetype: 'application/octet-stream',
-            }, { quoted: message });
-
-            reply(`📥 *${fileName}*\nSize: ${fileSize} MB`);
-        } catch (err) {
-            reply('Download failed. Check the link and try again.');
+        if (!validateUrl(url, ['mediafire.com'])) {
+            return reply(`❌ Provide a valid MediaFire URL.`);
         }
+
+        await reply(`🔥 Downloading from MediaFire...`);
+
+        // Try cobalt first
+        const result = await cobaltDownload(url);
+        if (result?.url) {
+            try {
+                const buf = await fetchBuffer(result.url);
+                if (buf.length > 1000) {
+                    await reply({ document: buf, fileName: result.filename || 'mediafire_download', mimetype: 'application/octet-stream', caption: `🔥 *MediaFire Download* ✅` });
+                    return;
+                }
+            } catch {}
+        }
+
+        // Direct scraping
+        try {
+            const { data: page } = await axios.get(url, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                timeout: 15000,
+            });
+
+            // Extract download link
+            const dlMatch = page.match(/href="(https?:\/\/download\d+\.mediafire\.com\/[^"]+)"/);
+            if (dlMatch) {
+                const dlUrl = dlMatch[1];
+                const fileName = page.match(/<div class="filename">([^<]+)/)?.[1] || 'download';
+                const buf = await fetchBuffer(dlUrl);
+                if (buf.length > 1000) {
+                    await reply({ document: buf, fileName, mimetype: 'application/octet-stream', caption: `🔥 *${fileName}* ✅` });
+                    return;
+                }
+            }
+        } catch {}
+
+        reply(`❌ Failed. Check URL and try again.`);
     },
 };

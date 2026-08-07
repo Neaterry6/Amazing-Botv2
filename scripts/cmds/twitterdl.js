@@ -1,45 +1,66 @@
+import { cobaltDownload, fetchBuffer, validateUrl } from '../../src/utils/downloadHelper.js';
 import axios from 'axios';
 
 export default {
     config: {
         name: 'twitterdl',
-        aliases: ['twitter', 'xdl', 'xdownload'],
+        aliases: ['xdl', 'tweet', 'twitter'],
         author: 'Broken_vzn',
-        version: '1.0',
-        shortDescription: 'Download Twitter/X videos',
+        version: '2.0',
+        shortDescription: 'Download Twitter/X videos and images',
         category: 'downloader',
         coolDown: 10,
         role: 0,
         guide: { en: '{prefix}twitterdl <url>' },
     },
-    async onStart({ args, reply, sock, from, message }) {
-        if (!args.length) return reply('Paste a Twitter/X link.\nUsage: twitterdl <url>');
 
+    async onStart({ args, reply, prefix, React }) {
+        React('🐦');
+        if (!args.length) return reply(`Usage: ${prefix}twitterdl <Twitter/X URL>`);
         const url = args[0];
-        if (!url.includes('twitter.com') && !url.includes('x.com')) return reply('That doesn\'t look like a Twitter URL.');
-
-        try {
-            const apiUrl = `https://api.tikmate.app/api/lookup?url=${encodeURIComponent(url)}`;
-            // Fallback: use cobalt.tools
-            const { data } = await axios.post('https://api.cobalt.tools/', {
-                url,
-                videoQuality: '720',
-                filenameStyle: 'basic',
-            }, {
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                timeout: 30000,
-            });
-
-            if (!data.url) return reply('Failed to fetch video.');
-
-            const { data: videoBuffer } = await axios.get(data.url, { responseType: 'arraybuffer', timeout: 60000 });
-
-            await sock.sendMessage(from, {
-                video: Buffer.from(videoBuffer),
-                caption: '🐦 Twitter/X download',
-            }, { quoted: message });
-        } catch (err) {
-            reply('Download failed. The tweet might be private or contain no video.');
+        if (!validateUrl(url, ['twitter.com', 'x.com', 't.co'])) {
+            return reply(`❌ Provide a valid Twitter/X URL.`);
         }
+
+        await reply(`🐦 Downloading Twitter media...`);
+
+        // Try cobalt
+        const result = await cobaltDownload(url);
+        if (result?.url) {
+            try {
+                const buf = await fetchBuffer(result.url);
+                if (buf.length > 1000) {
+                    const isVideo = result.url.includes('.mp4') || buf.slice(0, 4).toString() === 'ftyp';
+                    if (isVideo) {
+                        await reply({ video: buf, caption: `🐦 *Twitter Download* ✅` });
+                    } else {
+                        await reply({ image: buf, caption: `🐦 *Twitter Download* ✅` });
+                    }
+                    return;
+                }
+            } catch {}
+        }
+
+        // Fallback: vxtwitter
+        try {
+            const fixedUrl = url.replace('twitter.com', 'vxtwitter.com').replace('x.com', 'vxtwitter.com');
+            const { data } = await axios.get(`https://api.vxtwitter.com/Status/GetTweetDetails?url=${encodeURIComponent(fixedUrl)}`, { timeout: 10000 });
+            if (data?.mediaDetails?.length) {
+                for (const media of data.mediaDetails.slice(0, 4)) {
+                    const mediaUrl = media.video_info?.variants?.[0]?.url || media.media_url_https;
+                    if (mediaUrl) {
+                        const buf = await fetchBuffer(mediaUrl);
+                        if (media.type === 'video' || media.type === 'animated_gif') {
+                            await reply({ video: buf });
+                        } else {
+                            await reply({ image: buf });
+                        }
+                    }
+                }
+                return;
+            }
+        } catch {}
+
+        reply(`❌ Failed. Check URL and try again.`);
     },
 };

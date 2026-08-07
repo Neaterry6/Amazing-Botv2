@@ -1,70 +1,66 @@
+import { cobaltDownload, fetchBuffer, validateUrl } from '../../src/utils/downloadHelper.js';
 import axios from 'axios';
 
 export default {
     config: {
         name: 'gdrvdl',
-        aliases: ['gdrive', 'googledrive'],
+        aliases: ['gdrive', 'gd', 'googledrive'],
         author: 'Broken_vzn',
-        version: '1.0',
-        shortDescription: 'Download files from Google Drive',
+        version: '2.0',
+        shortDescription: 'Download from Google Drive',
         category: 'downloader',
         coolDown: 15,
         role: 0,
         guide: { en: '{prefix}gdrvdl <url>' },
     },
-    async onStart({ args, reply, sock, from, message }) {
-        if (!args.length) return reply('Paste a Google Drive link.\nUsage: gdrvdl <url>');
 
+    async onStart({ args, reply, prefix, React }) {
+        React('📁');
+        if (!args.length) return reply(`Usage: ${prefix}gdrvdl <Google Drive URL>`);
         const url = args[0];
-        if (!url.includes('drive.google.com')) return reply('That doesn\'t look like a Google Drive URL.');
+        if (!validateUrl(url, ['drive.google.com', 'docs.google.com'])) {
+            return reply(`❌ Provide a valid Google Drive URL.`);
+        }
+
+        await reply(`📁 Downloading from Google Drive...`);
+
+        // Extract file ID
+        const fileId = url.match(/[-\w]{25,}/)?.[0];
+        if (!fileId) return reply(`❌ Could not extract file ID.`);
 
         try {
-            // Extract file ID
-            let fileId;
-            const directMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-            const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-            fileId = directMatch?.[1] || idMatch?.[1];
+            // Get file info
+            const infoUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType,size&key=${process.env.GOOGLE_API_KEY || ''}`;
+            let fileName = 'download';
+            try {
+                const { data } = await axios.get(infoUrl, { timeout: 10000 });
+                fileName = data.name || 'download';
+            } catch {}
 
-            if (!fileId) return reply('Could not extract file ID from URL.');
+            // Direct download link
+            const downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`;
 
-            // Use a public GD bypass
-            const bypassUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-            const { headers, data: page } = await axios.get(bypassUrl, {
-                maxRedirects: 0,
-                validateStatus: s => s < 400,
-                timeout: 15000,
-            });
-
-            // Check for virus scan warning (large files)
-            let downloadUrl = bypassUrl;
-            if (page?.includes('confirm=')) {
-                const token = page.match(/confirm=([^&"]+)/)?.[1];
-                if (token) downloadUrl = `${bypassUrl}&confirm=${token}`;
+            // Try cobalt first
+            const result = await cobaltDownload(url);
+            if (result?.url) {
+                try {
+                    const buf = await fetchBuffer(result.url);
+                    if (buf.length > 1000) {
+                        await reply({ document: buf, fileName, mimetype: 'application/octet-stream', caption: `📁 *${fileName}* ✅` });
+                        return;
+                    }
+                } catch {}
             }
 
-            // Try to get filename from page
-            const nameMatch = page?.match(/<title>([^<]+)<\/title>/);
-            const fileName = nameMatch?.[1]?.replace(' - Google Drive', '')?.trim() || fileId;
-
-            const { data: buffer, headers: dlHeaders } = await axios.get(downloadUrl, {
-                responseType: 'arraybuffer',
-                timeout: 120000,
-            });
-
-            if (buffer.length > 100 * 1024 * 1024) {
-                return reply(`File too large (${(buffer.length / 1024 / 1024).toFixed(1)}MB). Max 100MB.`);
+            // Direct download
+            const res = await axios.get(downloadUrl, { responseType: 'arraybuffer', timeout: 60000 });
+            const buf = Buffer.from(res.data);
+            if (buf.length > 1000 && !buf.toString().includes('Google Drive - Error')) {
+                await reply({ document: buf, fileName, mimetype: 'application/octet-stream', caption: `📁 *${fileName}* ✅` });
+                return;
             }
+        } catch {}
 
-            const mime = dlHeaders['content-type'] || 'application/octet-stream';
-            await sock.sendMessage(from, {
-                document: buffer,
-                fileName: fileName,
-                mimetype: mime,
-            }, { quoted: message });
-
-            reply(`📥 *${fileName}*\nSize: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
-        } catch (err) {
-            reply('Download failed. The file might be too large, restricted, or the link is invalid.');
-        }
+        reply(`❌ Failed. File might be too large or access restricted.`);
     },
 };
