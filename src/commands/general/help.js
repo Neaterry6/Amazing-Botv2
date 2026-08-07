@@ -7,8 +7,8 @@ const BOOT = Date.now();
 const CAT_EMOJI = {
     admin: '🛡️', ai: '🤖', downloader: '📥', economy: '💰',
     fun: '🎭', games: '🎮', general: '📱', media: '🎨',
-    owner: '👑', utility: '🔧', info: '📊', misc: '⭐',
-    scraper: '🔍', edit: '✨',
+    owner: '👑', utility: '🧰', info: '📊', misc: '⭐',
+    scraper: '🔎', edit: '✨', music: '🎵', health: '💚',
 };
 
 const CAT_DESC = {
@@ -24,7 +24,12 @@ const CAT_DESC = {
     utility: 'Productivity tools',
     scraper: 'Web scraping tools',
     edit: 'Image editing',
+    music: 'Music & lyrics',
+    health: 'Health & habits',
 };
+
+// Quick-access commands shown on the main menu
+const QUICK_ACCESS = ['ai', 'play', 'movie', 'sticker', 'download', 'imagine', 'lyrics'];
 
 function uptime(ms) {
     const s = Math.floor(ms / 1000);
@@ -65,7 +70,7 @@ export default {
         name: 'help',
         aliases: ['menu', 'cmd', 'commands', 'menuhelp'],
         author: 'Broken_vzn',
-        version: '2.0',
+        version: '3.0',
         shortDescription: 'Show beautiful help menu',
         category: 'general',
         coolDown: 5,
@@ -75,21 +80,27 @@ export default {
 
     async onStart({ args, reply, sender, prefix, pushName, message, sock, from, getAllCommands, getCommandsByCategory, getAllCategories, React }) {
         React('📋');
+        const startHr = process.hrtime?.() || null;
+        const measurePing = () => {
+            if (!startHr) return '⚡';
+            const diff = process.hrtime(startHr);
+            return (diff[0] * 1000 + diff[1] / 1e6).toFixed(0) + ' ms';
+        };
 
         const allCmds = getAllCommands();
         const cats = getAllCategories().sort();
         const cat = args[0]?.toLowerCase();
 
-        // If user specified a category
+        // ---- CATEGORY VIEW ----
         if (cat && cats.includes(cat)) {
             const cmds = getCommandsByCategory(cat);
             const emoji = CAT_EMOJI[cat] || '⭐';
             const desc = CAT_DESC[cat] || '';
 
-            let text = `╭──────────────────╮\n`;
-            text += `│  ${emoji} *${cat.toUpperCase()}* Commands\n`;
+            let text = `╭──────────────────────────────╮\n`;
+            text += `│  ${emoji} *${cat.toUpperCase()}* COMMANDS\n`;
             text += `│  ${desc}\n`;
-            text += `╰──────────────────╯\n\n`;
+            text += `╰──────────────────────────────╯\n\n`;
 
             for (const cmd of (cmds || []).sort((a, b) => a.name.localeCompare(b.name))) {
                 text += `  ◆ ${prefix}${cmd.name}`;
@@ -98,69 +109,67 @@ export default {
                 if (cmd.description) text += `    ${cmd.description}\n`;
             }
 
-            text += `\n╭──────────────────╮\n`;
+            text += `\n╭──────────────────────────────╮\n`;
             text += `│  📊 ${cmds?.length || 0} commands\n`;
             text += `│  ${prefix}help — back to menu\n`;
-            text += `╰──────────────────╯`;
+            text += `╰──────────────────────────────╯`;
 
             return reply(text);
         }
 
-        // Main help menu with image
+        // ---- MAIN MENU ----
         const name = pushName || 'User';
-        const uid = sender.split('@')[0];
+        const uid = sender.split('@')[0].split(':')[0];
         const now = moment();
-        const botName = 'AMAZING BOT';
+        const botName = '𝐀𝐌𝐀𝐙𝐈𝐍𝐆 𝐁𝐎𝐓';
 
-        let text = `╭──────────────────────────────╮\n`;
-        text += `│\n`;
-        text += `│  🤖 *${botName}*\n`;
-        text += `│  ━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-        text += `│\n`;
-        text += `│  👤 ${name}\n`;
-        text += `│  🆔 ${uid}\n`;
-        text += `│  ⏱️ ${uptime(Date.now() - BOOT)}\n`;
-        text += `│  📊 ${allCmds.length} commands\n`;
-        text += `│  💾 ${ramUsage()}\n`;
-        text += `│  📅 ${now.format('DD MMM YYYY · HH:mm')}\n`;
-        text += `│\n`;
-        text += `╰──────────────────────────────╯\n\n`;
+        let text = `⟡ ────── 『 ${botName} 』 ────── ⟡\n`;
+        text += `ᴛʜᴇ ᴜʟᴛɪᴍᴀᴛᴇ ᴡʜᴀᴛsᴀᴘᴘ ᴀssɪsᴛᴀɴᴛ\n\n`;
+        text += `╭─────────────── ✦ ───────────────╮\n`;
+        text += `│  👋 Welcome, @${uid}\n`;
+        text += `│  ◈ Prefix : ${prefix}\n`;
+        text += `│  ◈ Version : v1.0.0\n`;
+        text += `│  ◈ Status : Online ●\n`;
+        text += `│  ◈ Uptime : ${uptime(Date.now() - BOOT)}\n`;
+        text += `│  ◈ Speed : ${measurePing()}\n`;
+        text += `╰─────────────── ✦ ───────────────╯\n\n`;
+        text += `⟡ 𝐌 𝐀 𝐈 𝐍 𝐌 𝐄 𝐍 𝐔 ⟡\n`;
+        text += `╭────────────────────────────────╮\n`;
 
         for (const c of cats) {
             const cmds = getCommandsByCategory(c);
             if (!cmds?.length) continue;
             const emoji = CAT_EMOJI[c.toLowerCase()] || '⭐';
-            const count = cmds.length;
-
-            text += `  ${emoji} *${c.toUpperCase()}* ─ ${count}\n`;
-            // Show first 5 commands
-            const names = cmds.map(cmd => cmd.name).sort();
-            text += `    ${names.slice(0, 5).join(', ')}`;
-            if (count > 5) text += ` +${count - 5} more`;
-            text += `\n\n`;
+            text += `│  ❖ ${emoji} ${c.toUpperCase()}\n`;
         }
-
-        text += `╭──────────────────────────────╮\n`;
-        text += `│  📌 *Quick Links*\n`;
+        text += `╰────────────────────────────────╯\n\n`;
+        text += `╭───────────── 𝐐𝐔𝐈𝐂𝐊 𝐀𝐂𝐂𝐄𝐒𝐒 ─────────────╮\n`;
         text += `│\n`;
-        text += `│  ${prefix}help <category>\n`;
-        text += `│  ${prefix}ping\n`;
-        text += `│  ${prefix}uptime\n`;
-        text += `│\n`;
-        text += `│  _Tap a category to see all commands_`;
-        text += `╰──────────────────────────────╯`;
 
-        // Try to send with image
+        const quickNames = QUICK_ACCESS.filter(q => allCmds.some(c => c.name === q || (c.aliases || []).includes(q)));
+        for (const q of quickNames) {
+            text += `│  › ${prefix}${q}\n`;
+        }
+        text += `╰────────────────────────────────────────────╯\n\n`;
+        text += `⟡ Type \`${prefix}help <category>\` for more info ⟡\n`;
+        text += `⟡ Example: \`${prefix}help ai\` ⟡\n\n`;
+        text += `╭────────────────────────────────╮\n`;
+        text += `│  ✦ 𝐀𝐌𝐀𝐙𝐈𝐍𝐆 𝐁𝐎𝐓 ✦\n`;
+        text += `│  ᴍᴀᴅᴇ ᴛᴏ ʙᴇ ᴅɪғғᴇʀᴇɴᴛ\n`;
+        text += `╰────────────────────────────────╯`;
+
+        // Send with image + mention
         const img = await fetchBotImage().catch(() => null);
         if (img) {
             try {
                 return await sock.sendMessage(from, {
                     image: img,
                     caption: text,
+                    mentions: [sender],
                 }, { quoted: message });
             } catch {}
         }
 
-        reply(text);
+        reply({ text, mentions: [sender] });
     }
 };
