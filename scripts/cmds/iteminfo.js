@@ -1,4 +1,4 @@
-import { fmtCoins, hasEffect } from '../../src/utils/economyDB.js';
+import { getEco, fmtCoins, hasEffect } from '../../src/utils/economyDB.js';
 
 const ITEMS = {
     'fishingrod': { name: 'Fishing Rod 🎣', desc: 'Better fish catches. Boosts fish income.', price: 5000, category: 'Tools' },

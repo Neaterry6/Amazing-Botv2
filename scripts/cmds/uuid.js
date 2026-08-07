@@ -1,35 +1,20 @@
-import { getEco, saveEco, fmtCoins } from '../../src/utils/economyDB.js';
+import crypto from 'crypto';
 
 export default {
     config: {
         name: 'uuid',
-        aliases: ['uid'],
+        aliases: ['uid', 'generateuid'],
         author: 'Broken_vzn',
         version: '1.0',
-        shortDescription: 'Generate a UUID',
+        shortDescription: 'Generate UUIDs',
         category: 'utility',
         coolDown: 3,
         role: 0,
         guide: { en: '{prefix}uuid [count]' },
     },
-
-    async onStart({ args, reply, prefix, React }) {
-        React('🆔');
-
+    async onStart({ args, reply }) {
         const count = Math.min(parseInt(args[0]) || 1, 10);
-
-        const genUUID = () => {
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-                const r = Math.random() * 16 | 0;
-                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-            });
-        };
-
-        let text = `━━━━━━━━━━━━━━━━━━━━\n  🆔 *UUID Generator*\n━━━━━━━━━━━━━━━━━━━━\n\n`;
-        for (let i = 0; i < count; i++) {
-            text += `\`${genUUID()}\`\n`;
-        }
-        text += `\n━━━━━━━━━━━━━━━━━━━━`;
-        reply(text);
+        const uuids = Array.from({ length: count }, () => crypto.randomUUID());
+        reply(`🆔 *UUID${count > 1 ? 's' : ''}*\n\n${uuids.join('\n')}`);
     },
 };

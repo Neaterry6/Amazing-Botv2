@@ -1,35 +1,39 @@
 export default {
     config: {
         name: 'base64',
-        aliases: ['b64', 'encode', 'decode'],
+        aliases: ['b64', 'encode64'],
         author: 'Broken_vzn',
         version: '1.0',
         shortDescription: 'Base64 encode/decode text',
         category: 'utility',
         coolDown: 3,
         role: 0,
-        guide: { en: '{prefix}base64 <encode|decode> <text>' },
+        guide: { en: '{prefix}base64 encode|decode <text>' },
     },
+    async onStart({ args, message, reply }) {
+        const sub = (args[0] || '').toLowerCase();
+        let text = args.slice(1).join(' ');
 
-    async onStart({ args, reply, prefix, React }) {
-        React('🔐');
-        if (args.length < 2) return reply(`Usage: ${prefix}base64 <encode|decode> <text>`);
+        if (!text) {
+            const quoted = message.message?.extendedTextMessage?.contextInfo?.quotedMessage?.conversation
+                || message.message?.extendedTextMessage?.contextInfo?.quotedMessage?.extendedTextMessage?.text;
+            if (quoted) text = quoted;
+        }
 
-        const mode = args[0].toLowerCase();
-        const text = args.slice(1).join(' ');
+        if (!text || !['encode', 'decode', 'enc', 'dec'].includes(sub)) {
+            return reply('Usage: base64 encode|decode <text>\nOr reply to a message.');
+        }
 
         try {
-            if (mode === 'encode') {
+            if (sub === 'encode' || sub === 'enc') {
                 const result = Buffer.from(text).toString('base64');
-                reply(`🔐 *Encoded:*\n\`${result}\``);
-            } else if (mode === 'decode') {
-                const result = Buffer.from(text, 'base64').toString('utf8');
-                reply(`🔓 *Decoded:*\n${result}`);
+                reply(`🔐 *Base64 Encoded:*\n\`\`\`${result}\`\`\``);
             } else {
-                reply(`Use *encode* or *decode*.\nUsage: ${prefix}base64 encode Hello`);
+                const result = Buffer.from(text, 'base64').toString('utf-8');
+                reply(`🔓 *Base64 Decoded:*\n${result}`);
             }
         } catch {
-            reply(`❌ Invalid input for ${mode} operation.`);
+            reply('Invalid input for decoding.');
         }
     },
 };
