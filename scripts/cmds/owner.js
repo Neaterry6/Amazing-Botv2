@@ -1,14 +1,40 @@
 export default {
-    config: { name: 'owner', aliases: ['contact', 'dev', 'creator'], author: 'Broken_vzn', version: '1.0',
-        shortDescription: 'Get bot owner contact', category: 'general', coolDown: 10, role: 0,
-        guide: { en: '{prefix}owner' } },
-    async onStart({ sock, message, from, reply }) {
-        const ownerNum = process.env.OWNER_NUMBER || '';
-        const ownerName = process.env.OWNER_NAME || 'Broken_vzn';
-        if (ownerNum) {
-            const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${ownerName}\nORG:AmazingBot;\nTEL;type=CELL;type=VOICE;waid=${ownerNum}:+${ownerNum}\nEND:VCARD`;
-            await sock.sendMessage(from, { contacts: { displayName: ownerName, contacts: [{ vcard }] } }, { quoted: message });
+    config: {
+        name: 'owner',
+        aliases: ['groupowner', 'getowner'],
+        author: 'Broken_vzn',
+        version: '1.0',
+        shortDescription: 'Find the group owner',
+        category: 'general',
+        coolDown: 5,
+        role: 0,
+        groupOnly: true,
+        guide: { en: '{prefix}owner' },
+    },
+
+    async onStart({ reply, sock, from, React }) {
+        React('👑');
+        try {
+            const meta = await sock.groupMetadata(from);
+            const ownerId = meta.owner;
+            const superAdmins = meta.participants.filter(p => p.superadmin);
+
+            // Owner might not be in participants list on some platforms
+            const owner = superAdmins.find(s => s.id === ownerId) || meta.participants.find(p => p.id === ownerId);
+
+            let text = `👑 *Group Owner*\n━━━━━━━━━━━━━━━━━━━━\n\n`;
+            if (owner) {
+                text += `  👤 @${ownerId?.split('@')[0] || 'unknown'}\n`;
+            } else if (ownerId) {
+                text += `  👤 @${ownerId.split('@')[0]}\n`;
+            } else {
+                text += `  🔍 Owner not exposed by WhatsApp for this group.\n  🛡️ Super admins:\n`;
+                superAdmins.forEach(s => { text += `  ▸ @${s.id.split('@')[0]}\n`; });
+            }
+            text += `\n━━━━━━━━━━━━━━━━━━━━`;
+            reply(text, ownerId ? [ownerId] : []);
+        } catch (err) {
+            reply(`❌ Failed: ${err.message}`);
         }
-        reply(`Bot Owner: ${ownerName}\nCreated by: Broken_vzn\nFor support, contact the owner.`);
     },
 };
