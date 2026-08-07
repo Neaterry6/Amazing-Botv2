@@ -14,10 +14,10 @@ export default {
         
             if (!text) return reply('Usage: .pwnedcheck <password>\nChecks if a password has appeared in known data breaches. Only a partial hash prefix is ever sent — your actual password never leaves your device.');
             const sha1 = crypto.createHash('sha1').update(text).digest('hex').toUpperCase();
-            const prefix = sha1.slice(0, 5);
+            const hashPrefix = sha1.slice(0, 5);
             const suffix = sha1.slice(5);
             try {
-                const { data } = await axios.get(`https://api.pwnedpasswords.com/range/${prefix}`);
+                const { data } = await axios.get(`https://api.pwnedpasswords.com/range/${hashPrefix}`);
                 const lines = data.split('\n');
                 const match = lines.find(l => l.startsWith(suffix));
                 if (match) {

@@ -3,7 +3,7 @@ export default {
         name: 'emojiriddle',
         author: 'Broken_vzn',
         version: '1.0',
-        shortDescription: '🧩 Guess what this is: ${pick.emoji}n(It's a movie or food — think about it!)',
+        shortDescription: 'Broken command',
         category: 'games',
         coolDown: 3,
         role: 0,

@@ -14,9 +14,9 @@ export default {
         
             const shortcut = (args[0] || '').toLowerCase();
             const data = load(fs, fsx, 'quickreplies.json');
-            const message = data[sender]?.[shortcut];
-            if (!message) return reply(`No quick reply called "${shortcut}". See yours with .quickreplylist`);
-            reply(message);
+            const replyText = data[sender]?.[shortcut];
+            if (!replyText) return reply(`No quick reply called "${shortcut}". See yours with .quickreplylist`);
+            reply(replyText);
         
     },
 };

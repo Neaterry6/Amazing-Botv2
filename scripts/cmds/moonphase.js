@@ -3,7 +3,7 @@ export default {
         name: 'moonphase',
         author: 'Broken_vzn',
         version: '1.0',
-        shortDescription: '🌙 Today's moon phase: *${getMoonPhase(new Date())}*',
+        shortDescription: "🌙 Today's moon phase",
         category: 'fun',
         coolDown: 3,
         role: 0,

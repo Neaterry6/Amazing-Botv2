@@ -3,7 +3,7 @@ export default {
         name: 'memorytest',
         author: 'Broken_vzn',
         version: '1.0',
-        shortDescription: '🧠 Memorize these 5 words for 10 seconds:n${shuffled.join(', ')}nnI'll ask yo',
+        shortDescription: '🧠 Memorize these 5 words, then recall them',
         category: 'games',
         coolDown: 3,
         role: 0,

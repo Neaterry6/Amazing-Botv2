@@ -3,7 +3,7 @@ export default {
         name: 'oddoneout',
         author: 'Broken_vzn',
         version: '1.0',
-        shortDescription: '❓ Which one doesn't belong?n${set.map((w, i) => ',
+        shortDescription: '❓ Find the odd one out',
         category: 'games',
         coolDown: 3,
         role: 0,

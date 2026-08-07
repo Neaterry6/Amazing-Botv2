@@ -3,7 +3,7 @@ export default {
         name: 'quickquiz',
         author: 'Broken_vzn',
         version: '1.0',
-        shortDescription: '❔ ${pick.q}nType .quickquizanswer to reveal the answer once you've guessed.',
+        shortDescription: 'Broken command',
         category: 'games',
         coolDown: 3,
         role: 0,

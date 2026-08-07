@@ -4,7 +4,7 @@ export default {
         aliases: ['slots'],
         author: 'Broken_vzn',
         version: '1.0',
-        shortDescription: '🎰 [ ${result.join(' | ')} ]n${win ? '🎉 Jackpot!' : 'No luck — try again!'}',
+        shortDescription: '🎰 Slot machine',
         category: 'games',
         coolDown: 3,
         role: 0,

@@ -3,7 +3,7 @@ export default {
         name: 'nametag',
         author: 'Broken_vzn',
         version: '1.0',
-        shortDescription: '🏷️ @${sender.split('@')[0]}',
+        shortDescription: '🏷️ Show your name tag',
         category: 'general',
         coolDown: 3,
         role: 0,
