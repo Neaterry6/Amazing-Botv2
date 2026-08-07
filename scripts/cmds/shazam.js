@@ -1,14 +1,11 @@
 import axios from 'axios';
 import FormData from 'form-data';
-import fs from 'fs';
-import path from 'path';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
+import { searchDeezerList } from '../../src/utils/musicScraper.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const tmpDir = path.resolve(__dirname, 'cache');
-if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
 function pickMedia(message) {
     const m = message?.message || {};
@@ -18,17 +15,12 @@ function pickMedia(message) {
     return { type, msg: inner[type] };
 }
 
-async function searchDeezer(query) {
-    const { data } = await axios.get(`https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=5`, { timeout: 12000 });
-    return data?.data || [];
-}
-
 export default {
     config: {
         name: 'shazam',
         aliases: ['identify', 'findmusic', 'recognize'],
         author: 'Broken_vzn',
-        version: '1.0',
+        version: '2.0',
         shortDescription: 'Identify a song (audio) or search by text',
         category: 'music',
         coolDown: 5,
@@ -41,22 +33,18 @@ export default {
     async onStart({ args, reply, message, sock, from, React }) {
         React('🎵');
 
-        // Check if replying to an audio/video message
         const media = pickMedia(message);
         const query = args.join(' ').trim();
 
-        if (media && !query) {
-            return identifyAudio(message, media, reply, sock, from);
-        }
+        if (media && !query) return identifyAudio(message, media, reply, sock, from);
 
         if (!query) {
             return reply(`🎵 *Shazam*\n\n• Reply to an *audio/video* to identify the song\n• Or: ${'{prefix}'}shazam <song name> to search\n\nFor audio recognition, set *AUDD_API_KEY* in .env (free at audd.io).`);
         }
 
-        // Text search — Shazam-style via Deezer
         React('🔍');
         try {
-            const tracks = await searchDeezer(query);
+            const tracks = await searchDeezerList(query, 5);
             if (!tracks.length) return reply(`❌ No matches for "${query}".`);
 
             let out = `🎵 *Shazam Results* — "${query}"\n━━━━━━━━━━━━━━━━━━━━\n\n`;
@@ -83,12 +71,8 @@ async function identifyAudio(message, media, reply, sock, from) {
     }
     if (!buffer) return reply(`❌ Empty audio.`);
 
-    // If audd.io key configured, do real identification
-    if (process.env.AUDD_API_KEY) {
-        return auddIdentify(buffer, reply);
-    }
+    if (process.env.AUDD_API_KEY) return auddIdentify(buffer, reply);
 
-    // No key — try filename/caption as a hint, else tell user to search
     const hint = media.msg?.fileName || media.msg?.caption || '';
     const replyText = hint
         ? `🔍 *No AUDD_API_KEY set*, so I can't fingerprint audio yet.\n\nI saw a file named: *${hint}*\n\nTry: ${'{prefix}'}shazam ${hint.split('.')[0]}\nor set AUDD_API_KEY in .env for real recognition.`
