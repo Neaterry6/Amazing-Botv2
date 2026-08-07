@@ -549,6 +549,7 @@ async function establishWhatsAppConnection() {
                 version,
                 getMessage: async () => ({ conversation: '' })
             });
+            global.__sock = sock;
 
             if (connectionTimeout) clearTimeout(connectionTimeout);
             connectionTimeout = setTimeout(() => {
